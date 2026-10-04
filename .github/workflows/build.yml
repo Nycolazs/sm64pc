@@ -1,0 +1,58 @@
+name: Build SM64 Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 libaudiofile-dev bsdmainutils
+
+      - name: Restore Base ROM
+        env:
+          ROM_DATA: ${{ secrets.BASEROM_BASE64 }}
+        run: |
+          echo "$ROM_DATA" | base64 -d > ./app/jni/src/baserom.us.z64
+          ls -lh ./app/jni/src/baserom.us.z64
+
+      - name: Get SDL Sources
+        run: |
+          ./getSDL.sh
+
+      - name: Build Native SM64 Core
+        run: |
+          cd app/jni/src
+          make --jobs $(nproc)
+          cd ../../..
+
+      - name: Build Android APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sm64-android-apk
+          path: app/build/outputs/apk/debug/*.apk

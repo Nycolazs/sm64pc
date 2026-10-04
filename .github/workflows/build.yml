@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -31,7 +31,6 @@ jobs:
 
       - name: Verify Base ROM
         run: |
-          # Procura a ROM na raiz ou dentro de app/jni/src e garante na raiz
           if [ -f "app/jni/src/baserom.us.z64" ]; then
             cp app/jni/src/baserom.us.z64 ./baserom.us.z64
           fi
@@ -54,7 +53,6 @@ jobs:
 
       - name: Compile Game & Generate APK
         run: |
-          # O make desse projeto compila e empacota o APK diretamente
           make --jobs $(nproc)
 
       - name: Upload APK Artifact

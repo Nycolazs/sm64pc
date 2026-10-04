@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '11'
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -27,22 +27,20 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 bsdmainutils zip libaudiofile-dev
+          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 bsdmainutils zip libaudiofile-dev zipalign apksigner
 
-      - name: Verify Base ROM
+      - name: Prepare Base ROM
         run: |
           if [ -f "app/jni/src/baserom.us.z64" ]; then
             cp app/jni/src/baserom.us.z64 ./baserom.us.z64
           fi
 
           if [ ! -f "./baserom.us.z64" ]; then
-            echo "ERRO: baserom.us.z64 nao encontrada na raiz do repositorio!"
+            echo "ERRO: baserom.us.z64 nao encontrada!"
             exit 1
           fi
 
-          echo "ROM encontrada:"
           ls -lh ./baserom.us.z64
-          sha1sum ./baserom.us.z64
 
       - name: Download SDL Dependencies
         run: |
@@ -51,12 +49,21 @@ jobs:
             ./getSDL.sh
           fi
 
-      - name: Compile Game & Generate APK
+      - name: Compile and Package APK
         run: |
-          make --jobs $(nproc)
+          export ANDROID_NDK_HOME="${ANDROID_NDK_ROOT}"
+          export NDK="${ANDROID_NDK_ROOT}"
+          make TARGET_ANDROID=1 --jobs $(nproc)
+
+      - name: List Generated Files
+        run: |
+          find . -name "*.apk" -o -name "*sm64*"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sm64-android-apk
-          path: build/us_pc/*.apk
+          path: |
+            build/**/*.apk
+            *.apk
+          if-no-files-found: error

@@ -1,4 +1,4 @@
-name: Build SM64 Android APK
+name: Build Android APK (Controller Only)
 
 on:
   workflow_dispatch:
@@ -17,50 +17,37 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r21e
+          ndk-version: r25c
 
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 bsdmainutils zip libaudiofile-dev zipalign apksigner
+          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 libaudiofile-dev bsdmainutils
 
-      - name: Prepare Base ROM
+      - name: Get SDL
         run: |
-          if [ -f "app/jni/src/baserom.us.z64" ]; then
-            cp app/jni/src/baserom.us.z64 ./baserom.us.z64
-          fi
+          chmod +x ./getSDL.sh
+          ./getSDL.sh
 
-          if [ ! -f "./baserom.us.z64" ]; then
-            echo "ERRO: baserom.us.z64 nao encontrada!"
-            exit 1
-          fi
-
-          ls -lh ./baserom.us.z64
-
-      - name: Download SDL Dependencies
+      - name: Disable Touch Controls & Build Native Core
         run: |
-          if [ -f "./getSDL.sh" ]; then
-            chmod +x ./getSDL.sh
-            ./getSDL.sh
-          fi
+          cd app/jni/src
+          # Desativa os controles touch na compilação se a flag existir
+          make TOUCH_CONTROLS=0 --jobs $(nproc) || make --jobs $(nproc)
+          cd ../../..
 
-      - name: Compile and Build APK
+      - name: Build Android APK
         run: |
-          export ANDROID_NDK="${ANDROID_NDK_ROOT}"
-          export ANDROID_NDK_HOME="${ANDROID_NDK_ROOT}"
-          export NDK="${ANDROID_NDK_ROOT}"
-          
-          # Executa o target apk explicitamente
-          make TARGET_ANDROID=1 apk --jobs $(nproc)
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: sm64-android-apk
-          path: build/us_pc/*.apk
-          if-no-files-found: error
+          name: sm64-android-gamepad
+          path: app/build/outputs/apk/debug/*.apk

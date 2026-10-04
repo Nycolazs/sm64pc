@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout repository
@@ -17,59 +17,48 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '8'
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25c
+          ndk-version: r21e
 
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 libaudiofile-dev bsdmainutils
+          sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 bsdmainutils zip libaudiofile-dev
 
-      - name: Check and Prepare Base ROM
+      - name: Verify Base ROM
         run: |
-          # Garante a ROM tanto na raiz quanto em app/jni/src
+          # Procura a ROM na raiz ou dentro de app/jni/src e garante na raiz
           if [ -f "app/jni/src/baserom.us.z64" ]; then
             cp app/jni/src/baserom.us.z64 ./baserom.us.z64
-          elif [ -f "./baserom.us.z64" ]; then
-            mkdir -p app/jni/src
-            cp ./baserom.us.z64 app/jni/src/baserom.us.z64
-          else
-            echo "ERRO: baserom.us.z64 nao encontrada!"
+          fi
+
+          if [ ! -f "./baserom.us.z64" ]; then
+            echo "ERRO: baserom.us.z64 nao encontrada na raiz do repositorio!"
             exit 1
           fi
 
-          echo "ROM encontrada com sucesso:"
-          ls -lh app/jni/src/baserom.us.z64
-          sha1sum app/jni/src/baserom.us.z64
+          echo "ROM encontrada:"
+          ls -lh ./baserom.us.z64
+          sha1sum ./baserom.us.z64
 
-      - name: Get SDL Sources
+      - name: Download SDL Dependencies
         run: |
           if [ -f "./getSDL.sh" ]; then
             chmod +x ./getSDL.sh
             ./getSDL.sh
           fi
 
-      - name: Build Native SM64 Core
+      - name: Compile Game & Generate APK
         run: |
-          if [ -d "app/jni/src" ] && [ -f "app/jni/src/Makefile" ]; then
-            cd app/jni/src
-            make --jobs $(nproc)
-            cd ../../..
-          else
-            make --jobs $(nproc)
-          fi
-
-      - name: Build Android APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          # O make desse projeto compila e empacota o APK diretamente
+          make --jobs $(nproc)
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sm64-android-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: build/us_pc/*.apk

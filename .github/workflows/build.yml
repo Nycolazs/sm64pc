@@ -29,20 +29,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config git libusb-1.0-0-dev libsdl2-dev python3 libaudiofile-dev bsdmainutils
 
-      - name: Restore Base ROM
-        env:
-          ROM_DATA: ${{ secrets.BASEROM_BASE64 }}
+      - name: Check and Prepare Base ROM
         run: |
-          # Garante que as pastas existam
-          mkdir -p ./app/jni/src
-          
-          # Escreve a ROM nos dois caminhos possíveis para evitar erros de estrutura
-          echo "$ROM_DATA" | base64 -d > ./app/jni/src/baserom.us.z64
-          cp ./app/jni/src/baserom.us.z64 ./baserom.us.z64
-          
-          # Confirma que o arquivo existe e tem tamanho válido (aprox. 8MB)
-          ls -lh ./app/jni/src/baserom.us.z64
-          ls -lh ./baserom.us.z64
+          # Garante a ROM tanto na raiz quanto em app/jni/src
+          if [ -f "app/jni/src/baserom.us.z64" ]; then
+            cp app/jni/src/baserom.us.z64 ./baserom.us.z64
+          elif [ -f "./baserom.us.z64" ]; then
+            mkdir -p app/jni/src
+            cp ./baserom.us.z64 app/jni/src/baserom.us.z64
+          else
+            echo "ERRO: baserom.us.z64 nao encontrada!"
+            exit 1
+          fi
+
+          echo "ROM encontrada com sucesso:"
+          ls -lh app/jni/src/baserom.us.z64
+          sha1sum app/jni/src/baserom.us.z64
 
       - name: Get SDL Sources
         run: |

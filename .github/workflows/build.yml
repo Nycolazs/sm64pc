@@ -49,21 +49,18 @@ jobs:
             ./getSDL.sh
           fi
 
-      - name: Compile and Package APK
+      - name: Compile and Build APK
         run: |
+          export ANDROID_NDK="${ANDROID_NDK_ROOT}"
           export ANDROID_NDK_HOME="${ANDROID_NDK_ROOT}"
           export NDK="${ANDROID_NDK_ROOT}"
-          make TARGET_ANDROID=1 --jobs $(nproc)
-
-      - name: List Generated Files
-        run: |
-          find . -name "*.apk" -o -name "*sm64*"
+          
+          # Executa o target apk explicitamente
+          make TARGET_ANDROID=1 apk --jobs $(nproc)
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sm64-android-apk
-          path: |
-            build/**/*.apk
-            *.apk
+          path: build/us_pc/*.apk
           if-no-files-found: error
